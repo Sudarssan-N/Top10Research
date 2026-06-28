@@ -1,0 +1,25 @@
+# Colab-friendly defaults (A100/T4) — use with scripts/colab_run_all.py
+base_model: "Qwen/Qwen2.5-1.5B-Instruct"
+seed: 42
+device: cuda
+max_new_tokens: 512
+temperature: 0.7
+
+benchmarks:
+  - gsm8k
+  - math500
+
+data_dir: "data"
+feature_pooling: "last_token"
+label_n: 8
+n_samples_best_of_n: 16
+
+controller_hidden_dim: 128
+num_controller_layers: 2
+train_batch_size: 16
+learning_rate: 1.0e-4
+num_epochs: 5
+trust_loss_weight: 0.5
+val_fraction: 0.15
+
+output_dir: "results/colab_run"

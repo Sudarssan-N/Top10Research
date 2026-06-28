@@ -1,0 +1,24 @@
+torch>=2.4.0
+transformers>=4.46.0
+datasets>=3.0.0
+accelerate>=1.0.0
+evaluate>=0.4.0
+numpy>=1.26
+pandas>=2.2
+scikit-learn>=1.5
+tqdm>=4.66
+pyyaml>=6.0
+matplotlib>=3.9
+seaborn>=0.13
+huggingface_hub>=0.25
+tokenizers>=0.20
+# Optional but recommended for research
+wandb>=0.18
+# For data
+requests
+# For math evals
+sympy>=1.13
+# For light agent / tool use in later problems
+# openai  # if using API fallback
+# For MoE / specific
+# For speculative: may need vllm or direct

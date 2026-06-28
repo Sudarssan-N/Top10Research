@@ -1,0 +1,16 @@
+torch>=2.4.0
+transformers>=4.46.0
+datasets>=3.0.0
+accelerate>=1.0.0
+evaluate>=0.4.0
+numpy>=1.26
+pandas>=2.2
+scikit-learn>=1.5
+tqdm>=4.66
+pyyaml>=6.0
+matplotlib>=3.9
+seaborn>=0.13
+huggingface_hub>=0.25
+wandb>=0.18
+sympy>=1.13
+# Speculative decoding may benefit from vllm or direct attention hacking

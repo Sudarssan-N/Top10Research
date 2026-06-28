@@ -1,0 +1,18 @@
+base_model: "mock"
+seed: 42
+max_new_tokens: 256
+temperature: 0.7
+controller_hidden_dim: 128
+num_epochs: 2
+learning_rate: 1e-4
+n_samples_best_of_n: 16
+target_fpr: 0.05
+benchmarks:
+  - mock
+output_dir: "results/phase1"
+log_interval: 5
+
+# Full run example:
+#   python scripts/run_phase1_ceiling.py --config configs/phase1.yaml \
+#     --base-model Qwen/Qwen2.5-1.5B-Instruct --benchmarks math500,gsm8k \
+#     --max-examples 50 --n-values 1,2,4,8,16

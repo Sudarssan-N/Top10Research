@@ -1,0 +1,15 @@
+base_model: "Qwen/Qwen2.5-1.5B-Instruct"
+seed: 42
+controller_hidden_dim: 128
+num_controller_layers: 2
+learning_rate: 1e-4
+num_epochs: 2
+train_batch_size: 4
+eval_batch_size: 8
+budget_max_tokens: 2048
+n_samples_best_of_n: 8
+benchmarks:
+  - math500
+  - gsm8k
+output_dir: "results/run-001"
+log_interval: 5
