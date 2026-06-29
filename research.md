@@ -215,7 +215,7 @@ The field has shifted from **“does more test-time compute help?”** to **“h
 |---|---|---|---|
 | 1 | BiasScope — Automated Bias Discovery | arXiv:2602.09383 | Direct precursor |
 | 2 | Judging LLM-as-a-Judge (MT-Bench) — Zheng et al. | 2023 | Judge foundation |
-| 3 | LLM Evaluators Recognize and Favor Their Own Generations | arXiv:2406.07791 | Self-enhancement bias |
+| 3 | LLM Evaluators Recognize and Favor Their Own Generations (Panickssery et al., NeurIPS 2024) | arXiv:2404.13076 | Self-enhancement bias (was mis-cited as 2406.07791, a different position-bias paper) |
 | 4 | Survey of LLM-as-a-Judge | arXiv:2411.16594 | Bias taxonomy |
 | 5 | Position Bias in LLM Evaluators | 2024 | Known bias to beat |
 | 6 | Verbosity Bias in LLM Judges | 2024 | Length bias |
