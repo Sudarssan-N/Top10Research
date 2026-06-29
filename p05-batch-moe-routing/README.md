@@ -3,31 +3,36 @@
 **Problem statement summary:**  
 Training-free or lightly adapted batch-aware router that mitigates union-of-experts activation and load imbalance for batched decode speedup.
 
-**Compute target:** 2-8×A100 burst (~100 GPU-hrs, $400-900)  
-**Target venues:** MLSys / NeurIPS / ICLR  
-**Priority:** Medium (systems-heavy, good for MLSys)  
-**Key references:** arXiv:2511.02237 (opportunistic MoE activation)
+**Compute target:** single A100 (offload regime) + vLLM baseline  
+**Target venues:** MLSys / NeurIPS / ICLR (systems track)  
+**Priority:** LOW — **pivot/deprioritize below P1/P3/P4** (see verdict)  
+**Key references:** OEA arXiv:2511.02237, Lynx arXiv:2411.08982, SERE arXiv:2602.07616, XShare arXiv:2602.07265
 
-## Goals for this project
+> **Verdict (2026-06-29, see [`research.md`](research.md)): PIVOT / DEPRIORITIZE.**
+> This is the most-scooped problem in the portfolio — the exact idea is OEA, already
+> done training-free by Lynx, and the serving-integration gap is being closed now by
+> SERE/XShare. Pursue **only** as the narrow "end-to-end vLLM throughput study OEA
+> never did" (real wall-clock + peak memory in the single-GPU offload regime), not as
+> a new routing idea. Hardest part is the measurement, not the method.
 
-- Reproduce / implement strong baselines (best-of-N, simple difficulty-only controllers, Re-FORC style where applicable).
-- Implement the core contribution described in the strategy doc.
-- Run clean ablations and report compute-efficiency + accuracy tradeoffs on MATH-500, AIME 2024/25, GPQA (and code/math where relevant).
-- Produce publication-quality figures, tables, and analysis.
+## Goals (if pursued, re-aimed)
 
-## Current Status (scaffold)
+- Profile union-of-experts growth vs. batch size on a real open MoE (Qwen-MoE / Mixtral).
+- Apply a **training-free** batch policy (opportunistic / similarity / budget) over the
+  model's own gating — no trained router.
+- Report **end-to-end tokens/s + peak memory vs. vLLM** at matched downstream accuracy
+  (the load-bearing metric; FLOP/expert-count proxies do not count).
 
-- [x] Folder + basic structure created
-- [x] README + run.md + requirements skeleton
-- [x] BatchAwareMoERouter (expert probs + suggest_batch_mask + est_speedup sim)
-- [x] Smoke (mask + speedup demo) + train (MSE on expert dist) runnable
-- [ ] Profiling real MoE (Qwen-MoE or similar) batch activation stats
-- [ ] Training-free vs lightly trained router comparison
-- [ ] Throughput/latency measurement harness (single node)
-- [ ] Results vs vLLM/TensorRT baselines + accuracy vs sparsity
-- [ ] MLSys-style numbers and ablations
+## Current Status (scaffold — placeholder)
 
-See `run.md` for exact next steps and how to execute.
+- [x] Folder + basic structure
+- [⚠️] `core.py` `BatchAwareMoERouter` is a **placeholder** (trains a router; FLOP-proxy
+  speedup) — see PIVOT NOTE in `src/core.py`; replace before any real run
+- [ ] Hook a real MoE's gating logits + batch-union profiler
+- [ ] Training-free policy + accuracy check
+- [ ] vLLM wall-clock / peak-memory harness (adopt MoE-Inference-Bench, arXiv:2508.17467)
+
+See `run.md` for the re-aimed plan.
 
 ## Directory layout
 

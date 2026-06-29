@@ -4,7 +4,7 @@
 
 **Source of truth for problem definitions:** `compass_artifact_wf-8d14bf99-24a1-4aa2-93c0-65bc5148adc7_text_markdown.md`
 
-**Status:** Living document. **P1**, **P2**, and **P3** research foundations complete; P4–P10 follow the same structure.
+**Status:** Living document. **P1–P7** research foundations complete (full web-verified docs in `common/research/`); **P8–P10** still use the inline 20-paper maps below. P4–P7 each carry a 2026-06-29 **verdict** — all four are *pivot* recommendations (re-aim before committing compute), with P4 retained as the cheap rank-3 hedge. See each per-problem doc for the critical assessment.
 
 ---
 
@@ -84,155 +84,53 @@ The field has shifted from **“does more test-time compute help?”** to **“h
 
 ## P4 — Test-Time Compute vs. Confidence Calibration
 
-### Problem Statement
+> **Full research doc:** [`common/research/p04-research.md`](common/research/p04-research.md)  
+> **Project symlink:** `p04-*/research.md`
 
-> Does increasing reasoning budget help or hurt calibration, and can a lightweight probe fix it?
+**Problem:** Does increasing reasoning budget help or hurt calibration, and can a lightweight *post-hoc* probe fix it without retraining the base model?
 
-### Implementation Notes (Scaffold)
+**Verdict (2026-06-29):** On track as the rank-3 **hedge**, but **pivot the framing**. The phenomenon (more reasoning → worse calibration; reasoning models stay overconfident) and the hidden-state correctness probe are each already occupied. Defensible white space: a **budget-conditioned, transferable post-hoc recalibration map** for *frozen* reasoning models, judged on **selective risk (AURC / risk–coverage) with a split-conformal coverage guarantee**, under an explicit no-retrain constraint. Cheapest problem to run; reuses P1 generations. Risk: scoop on the descriptive half; budget→ECE may not replicate on math (it is non-monotonic).
 
-- `CalibrationProbe` in `p04-calibration-probe/src/core.py`
-- `compute_ece()` already in P1 `evaluate.py` — share across projects
-- Sweep budgets on 3–4 open reasoning models; train recalibration probe
-
-### 20 Closest Papers for P4
-
-| # | Paper | ID / Venue | Relevance |
-|---|---|---|---|
-| 1 | Over-Reasoning Impairs Confidence Calibration | arXiv:2508.15050 | Direct motivation |
-| 2 | Jiang et al. — Can LLMs Express Their Uncertainty? | 2023 | Verbalized confidence |
-| 3 | Kuhn et al. — Semantic Uncertainty | 2023 | Uncertainty for long outputs |
-| 4 | Lin et al. — Teaching Models to Express Uncertainty in Words | 2022 | Uncertainty language |
-| 5 | Desai & Durrett — Calibration of Pre-trained Transformers | 2020 | NLP calibration baseline |
-| 6 | Guo et al. — On Calibration of Modern Neural Networks | ICML 2017 | Temperature scaling |
-| 7 | Mielke et al. — Reducing Calibration Error | 2022 | Calibration methods |
-| 8 | Nixon et al. — Measuring Calibration | 2019 | ECE metrics |
-| 9 | Kadavath et al. — Language Models (Mostly) Know What They Know | 2022 | P(True) calibration |
-| 10 | Xiong et al. — Approximate Nearest Neighbor Calibration | 2024 | LLM calibration |
-| 11 | Snell et al. — test-time compute scaling | arXiv:2408.03314 | Budget-compute axis |
-| 12 | LLMThinkBench | arXiv:2507.04023 | Reasoning length vs. quality |
-| 13 | DeepSeek-R1 / reasoning model reports | 2025 | Overconfidence in reasoning models |
-| 14 | Conformal Prediction for LLMs | 2024 | Distribution-free calibration |
-| 15 | Selective Prediction surveys | 2023 | Reject option / abstention |
-| 16 | Process Reward Models — calibration at step level | ICLR 2024 | Step-level confidence |
-| 17 | Gao et al. — Reward Model Overoptimization | 2023 | Verifier miscalibration |
-| 18 | Stroebl et al. — verifier imperfection | arXiv:2411.17501 | FP/FN and selection confidence |
-| 19 | Tian et al. — Just Ask for Calibration | 2023 | Prompting for calibration |
-| 20 | Zhao et al. — Calibrate Before Use | 2021 | Few-shot calibration effects |
+**Anchor / P0 papers:** Over-Reasoning Impairs Calibration (arXiv:2508.15050); Reasoning Models Know When They're Right (arXiv:2504.05419); RLCR — the retrain-allowed upper bound (arXiv:2507.16806); Guo temperature scaling (arXiv:1706.04599); Tian "Just Ask" (arXiv:2305.14975). Full web-verified list + citation caveats in the per-problem doc.
 
 ---
 
 ## P5 — Batch-Aware MoE Expert Routing at Inference
 
-### Problem Statement
+> **Full research doc:** [`common/research/p05-research.md`](common/research/p05-research.md)  
+> **Project symlink:** `p05-*/research.md`
 
-> Can training-free batch-aware routing reduce union-of-experts activation and load imbalance during batched MoE inference?
+**Problem:** Can training-free batch-aware routing reduce union-of-experts activation during batched MoE inference, improving wall-clock throughput/memory without accuracy loss?
 
-### Implementation Notes (Scaffold)
+**Verdict (2026-06-29):** **Pivot / deprioritize below P1/P3/P4** — most-scooped problem in the portfolio. The exact idea is the anchor OEA (arXiv:2511.02237) and was already done training-free a year earlier by Lynx (arXiv:2411.08982); the serving-integration white space OEA left open is being closed *now* by SERE (arXiv:2602.07616, vLLM-integrated) and XShare (arXiv:2602.07265, vLLM RFC). Only un-taken slice: the **end-to-end vLLM throughput study OEA never did** (offload/single-GPU regime, batch-adaptive k₀, per-layer budgets) — a systems grind with a shrinking window, and the MoEs worth testing don't fit fp16 on one 40GB A100. Current `core.py` is a placeholder (it *trains* a router, contradicting "training-free"; its speedup is a FLOP proxy).
 
-- `BatchMoERouter` in `p05-batch-moe-routing/src/core.py`
-- Profile expert activation patterns; opportunistic subset selection per batch
-- Rigorous wall-clock vs. vLLM baselines required for MLSys credibility
-
-### 20 Closest Papers for P5
-
-| # | Paper | ID / Venue | Relevance |
-|---|---|---|---|
-| 1 | Opportunistic MoE Activation at Inference | arXiv:2511.02237 | Direct precursor — training-free routing |
-| 2 | Switch Transformers — Fedus et al. | JMLR 2022 | MoE routing foundation |
-| 3 | GShard — Lepikhin et al. | 2021 | Large-scale MoE |
-| 4 | Mixtral of Experts | 2024 | Open MoE reference model |
-| 5 | DeepSeek-MoE | 2024 | Fine-grained experts |
-| 6 | Qwen-MoE Technical Report | 2025 | Open MoE eval target |
-| 7 | BASE Layers — Lewis et al. | 2021 | Load balancing |
-| 8 | Expert Choice Routing | 2022 | Alternative routing paradigm |
-| 9 | Tutel — Microsoft | 2022 | MoE serving system |
-| 10 | DeepSpeed-MoE — Rajbhandari et al. | 2022 | MoE training/serving |
-| 11 | MegaBlocks — Gale et al. | 2023 | Efficient MoE kernels |
-| 12 | Soft MoE — Puigcerver et al. | 2024 | Differentiable routing |
-| 13 | Orca — Yu et al. | OSDI 2022 | Continuous batching |
-| 14 | vLLM — PagedAttention | SOSP 2023 | Inference serving baseline |
-| 15 | Router Z-Loss — Zoph et al. | 2022 | Router stability |
-| 16 | Load Balancing in MoE — analysis papers | 2023–2025 | Imbalance characterization |
-| 17 | gpt-oss / open MoE releases | 2025 | Evaluation targets |
-| 18 | Expert Parallelism strategies | 2024 | Multi-GPU MoE inference |
-| 19 | Batch inference optimization surveys | 2024 | Systems context |
-| 20 | Sparsity vs. batching tradeoffs in MoE | 2025 | Core P5 tension |
+**Anchor / P0 papers:** OEA (arXiv:2511.02237); Lynx (arXiv:2411.08982); SERE (arXiv:2602.07616); XShare (arXiv:2602.07265); MoE-Inference-Bench harness (arXiv:2508.17467). Full web-verified list in the per-problem doc.
 
 ---
 
 ## P6 — Context-Length-Induced Degradation Under Perfect Retrieval
 
-### Problem Statement
+> **Full research doc:** [`common/research/p06-research.md`](common/research/p06-research.md)  
+> **Project symlink:** `p06-*/research.md`
 
-> Why do models degrade as context grows even when retrieval is perfect, and can simple mitigations (reorder, calibrate) help?
+**Problem:** Why do models degrade as context grows even when retrieval is perfect, and can simple training-free mitigations help?
 
-### Implementation Notes (Scaffold)
+**Verdict (2026-06-29):** **Pivot / sharpen** — the scaffolded version (show length hurts, then reorder/calibrate) is already solved: attention re-calibration = *Found in the Middle* (arXiv:2406.16008, +15pp), reordering = the standard Lost-in-the-Middle remedy, and the anchor (arXiv:2510.05381) already isolates length from retrieval and ships a recitation fix. Real white space: the **mechanism** — nobody has run the orthogonalizing {few/many tokens} × {evidence at small/large absolute position} 2×2 under certified-perfect retrieval. The anchor's own masking result *falsifies* the attention-dilution story and points at positional/RoPE effects; a mechanism-targeted fix that beats recitation is the contribution. Concentrated scoop risk: Hao Peng's lab authored both the anchor and PINE.
 
-- `ContextDegradationProbe` + reorder logic in `p06-long-context-degradation/src/core.py`
-- Controlled injection experiments isolating retrieval from length
-
-### 20 Closest Papers for P6
-
-| # | Paper | ID / Venue | Relevance |
-|---|---|---|---|
-| 1 | Context Length Alone Hurts Despite Perfect Retrieval | arXiv:2510.05381 | Primary motivation |
-| 2 | Lost in the Middle — Liu et al. | TACL 2024 | U-shaped performance |
-| 3 | RULER — Hsieh et al. | 2024 | Long-context eval suite |
-| 4 | Needle-in-a-Haystack evaluations | 2023–2024 | Position sensitivity |
-| 5 | Distraction-Aware Retrieval | arXiv:2509.21865 | Mitigation adjacent |
-| 6 | Attention Calibration for Long Context | arXiv:2406.16008 | Calibration fix |
-| 7 | LongBench — Bai et al. | 2023 | Benchmark suite |
-| 8 | InfiniteBench | 2024 | Extreme length eval |
-| 9 | NIAH variants (RULER, BABILong) | 2024–2025 | Controlled probes |
-| 10 | Retrieval-Augmented Generation surveys | 2024 | RAG context |
-| 11 | YaRN — Peng et al. | 2023 | RoPE extension |
-| 12 | LongLoRA — Chen et al. | 2023 | Efficient long fine-tune |
-| 13 | StreamingLLM — Xiao et al. | 2023 | Attention sink phenomenon |
-| 14 | H2O — Heavy Hitter Oracle | 2023 | KV / attention sparsity |
-| 15 | Landmark Attention | 2023 | Long-context architecture |
-| 16 | Passage Re-ranking for RAG | 2023 | Retrieval quality (control) |
-| 17 | FlashAttention-2 — Dao | 2023 | Long-seq efficiency (enables experiments) |
-| 18 | Mechanistic interpretability of attention dilution | 2024–2025 | Mechanism diagnosis |
-| 19 | Gemma / Llama long-context reports | 2024–2025 | Open models for replication |
-| 20 | "Lost in the Middle" follow-ups / mitigations | 2024 | Reordering strategies |
+**Anchor / P0 papers:** Context Length Alone Hurts (arXiv:2510.05381); Lost in the Middle (Liu et al., TACL 2024); Found in the Middle (arXiv:2406.16008); PINE — mechanistic position-bias removal (arXiv:2407.01100); sparse-attention / α-entmax long-context (arXiv:2506.16640). Full web-verified list in the per-problem doc.
 
 ---
 
 ## P7 — Automated Discovery of Novel Biases in LLM-as-Judge
 
-### Problem Statement
+> **Full research doc:** [`common/research/p07-research.md`](common/research/p07-research.md)  
+> **Project symlink:** `p07-*/research.md`
 
-> Can we automatically discover (not just catalogue) evaluation biases in LLM judges with causal validation?
+**Problem:** Can we automatically *discover* (not just catalogue) evaluation biases in LLM judges, with causal validation?
 
-### Implementation Notes (Scaffold)
+**Verdict (2026-06-29):** **Pivot** — substantially scooped. **BiasScope (arXiv:2602.09383) is real (ICLR 2026)** — the earlier "maybe speculative" warning was *wrong* — and it already does the proposed automated discovery + correctness-preserving counterfactual perturbations (48 validated biases, JudgeBench-Pro); Automated Concept Discovery (arXiv:2603.03319) is a second scooper. Defensible residual: **causal** validation (flip-rate ATE + bootstrap CIs + mediation to rule out confounds) in the **executably-verifiable code-judge domain** (CodeJudgeBench, arXiv:2507.10535), where unit-test pass/fail makes "answer quality held fixed" ground truth rather than an approximation. Fast-moving (Bias-in-the-Loop, arXiv:2604.16790). Current `core.py` (MLP on pair embeddings) does not match the real prompt/LLM-driven perturbation + API-judge + causal-estimation method.
 
-- Contrastive perturbation pipeline in `p07-bias-discovery-llm-judge/src/core.py`
-- Validate on MT-Bench / CodeJudgeBench; quantify FPR shifts under perturbation
-
-### 20 Closest Papers for P7
-
-| # | Paper | ID / Venue | Relevance |
-|---|---|---|---|
-| 1 | BiasScope — Automated Bias Discovery | arXiv:2602.09383 | Direct precursor |
-| 2 | Judging LLM-as-a-Judge (MT-Bench) — Zheng et al. | 2023 | Judge foundation |
-| 3 | LLM Evaluators Recognize and Favor Their Own Generations (Panickssery et al., NeurIPS 2024) | arXiv:2404.13076 | Self-enhancement bias (was mis-cited as 2406.07791, a different position-bias paper) |
-| 4 | Survey of LLM-as-a-Judge | arXiv:2411.16594 | Bias taxonomy |
-| 5 | Position Bias in LLM Evaluators | 2024 | Known bias to beat |
-| 6 | Verbosity Bias in LLM Judges | 2024 | Length bias |
-| 7 | Authority Bias — model name effects | 2024 | Metadata bias |
-| 8 | CodeJudgeBench | 2025 | Code evaluation bias testbed |
-| 9 | JudgeBench | 2024 | Judge reliability benchmark |
-| 10 | G-Eval — Liu et al. | 2023 | Chain-of-thought judging |
-| 11 | Prometheus 2 — Kim et al. | 2024 | Open judge models |
-| 12 | AlpacaEval 2 — Dubois et al. | 2024 | Automated eval pipeline |
-| 13 | Chatbot Arena methodology — Chiang et al. | 2024 | Human-judge alignment |
-| 14 | Constitutional AI — Bai et al. | 2022 | RLAIF judging |
-| 15 | Pairwise vs. Pointwise Evaluation | 2024 | Experimental design |
-| 16 | CALM — Calibrating LLM Judges | 2024 | Judge calibration |
-| 17 | Reward Hacking in LLM Evaluation | 2024 | Gaming metrics |
-| 18 | Causal Inference for NLP — Keith et al. | 2020 | Causal validation methods |
-| 19 | CheckEval — checklist evaluation | 2024 | Structured judging |
-| 20 | Multi-attribute LLM judging | 2024 | Factorized bias discovery |
+**Anchor / P0 papers:** BiasScope (arXiv:2602.09383); Automated Concept Discovery (arXiv:2603.03319); CodeJudgeBench (arXiv:2507.10535); self-enhancement bias — Panickssery et al. (arXiv:2404.13076); MT-Bench — Zheng et al. (arXiv:2306.05685). Full web-verified list in the per-problem doc.
 
 ---
 
@@ -376,7 +274,7 @@ Build once, reuse across P1–P4 (highest overlap):
 1. **Re-FORC** (arXiv:2511.02130) is a NeurIPS 2025 Efficient Reasoning **workshop** paper — treat metrics as indicative until archival.
 2. **Agrawal et al. "Cut the Overcredit"** is under review (OpenReview:7mVZy4mI1J) — for peer-reviewed ceiling claims, cite **Stroebl et al.** (arXiv:2411.17501).
 3. **Snell "14× larger model"** result is conditional on non-trivial base success rates — do not over-claim.
-4. Several **2026 arXiv** papers (e.g., arXiv:2603.15377, arXiv:2604.05417) are preprints — verify venue/status before camera-ready.
+4. Several **2026 arXiv** papers are preprints — verify venue/status before camera-ready. **Update (2026-06-29):** the P7 anchor **BiasScope (arXiv:2602.09383) is confirmed real** (ICLR 2026) — the earlier "possibly speculative" flag was wrong. The §P4–§P7 inline 20-paper maps that used to live here contained several mis-cites (e.g. self-enhancement bias is arXiv:2404.13076, not 2406.07791; the "Jiang et al. uncertainty" paper is Xiong et al. arXiv:2306.13063) and have been **superseded by the web-verified lists in `common/research/p04–p07-research.md`** — treat those as authoritative.
 5. **Memori / A-Mem** numbers come from project reports/preprints — reproduce on LoCoMo locally.
 
 ---
@@ -411,6 +309,15 @@ Build once, reuse across P1–P4 (highest overlap):
 - [ ] Phase 5: full Pareto eval vs. Re-FORC / ThinkPrune references
 - [ ] Document reproduced numbers in `p03-overthinking-latent-controller/run.md`
 
+### P4–P7 (research foundations complete, 2026-06-29)
+- [x] Web-verified literature review + critical "are-we-on-track" verdict in `common/research/p04–p07-research.md`
+- [x] Master-doc §P4–§P7 condensed to pointer + verdict; mis-cites corrected
+- [x] Scaffold boilerplate (P1 math/best-of-N knobs) stripped from P5/P6/P7 configs/run.md/core docstrings
+- [ ] **P4:** build budget-sweep + budget-conditioned recalibration + AURC/risk–coverage on P1 generations (cheap hedge — do in parallel with P1)
+- [ ] **P5:** *pivot-or-park* — only if pursuing the end-to-end vLLM throughput study; rewrite `core.py` away from the trained-router placeholder
+- [ ] **P6:** *pivot* — design the {token-count} × {absolute-position} 2×2 under certified-perfect retrieval; demote `ContextDegradationProbe` to a diagnostic
+- [ ] **P7:** *pivot* — re-aim at causal validation in the code-judge domain; rewrite `core.py` to the LLM-perturbation + API-judge pipeline
+
 ---
 
-*Last updated: 2026-06-26. Extend this file as baselines are reproduced and paper lists are validated against your local bibliography manager.*
+*Last updated: 2026-06-29. Extend this file as baselines are reproduced and paper lists are validated against your local bibliography manager.*

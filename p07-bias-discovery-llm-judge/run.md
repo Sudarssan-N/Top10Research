@@ -1,140 +1,50 @@
 # How to Run — P7: Automated Discovery of Novel Biases in LLM-as-Judge
 
-This document gives complete, reproducible instructions to set up and run experiments for this problem.
+> **Read [`research.md`](research.md) first.** Verdict (2026-06-29): **PIVOT**.
+> The discovery framing is scooped by BiasScope (ICLR 2026, real). The residual is **causal**
+> validation in the **code-judge** domain. `src/core.py`'s `BiasDiscoveryProbe` is a
+> placeholder — the real pipeline is prompt/LLM-driven perturbation + API judge + a causal
+> estimator. Mostly API cost; minimal GPU.
 
-> **Status note:** This is the initial scaffold. Code implements basic structure, mock runs, and the core skeleton. Full research implementation (model training + strong baselines) will be built iteratively. Start by following the "Minimal smoke test" then move to real training.
-
-## 1. Environment Setup
+## 1. Environment
 
 ```bash
 cd p07-bias-discovery-llm-judge
-python -m venv .venv
-source .venv/bin/activate   # or conda / your preferred
-pip install --upgrade pip
 pip install -r requirements.txt
+export OPENAI_API_KEY=...      # or your judge/perturbation provider keys
 ```
 
-**Recommended hardware:** See top of this doc (usually 1x A100 or equivalent).  
-For smoke tests: CPU or small GPU is fine (models will be tiny or mocked at first).
-
-**HF login (for models/datasets):**
-```bash
-huggingface-cli login
-# or set HF_TOKEN env
-```
-
-## 2. Data Preparation
-
-Most projects use:
-- MATH (hendrycks_math or math dataset on HF)
-- GSM8K
-- AIME 2024/2025 (usually manual or community splits; scripts will download)
-- GPQA (diamond)
-
-The `scripts/prepare_data.py` (or equivalent in src) will cache them under `data/`.
-
-Run once:
-```bash
-python scripts/prepare_data.py   # if present, or use the logic in evaluate/train
-```
-
-## 3. Minimal Smoke Test (always works, even without GPU)
+## 2. Smoke test (CPU, no API)
 
 ```bash
-python -c "
-from src.utils import hello
-print(hello())
-# or
-python scripts/run_experiment.py --config configs/default.yaml --smoke-test
-"
-
-Expected: prints version info, runs a dummy forward pass or mock controller, writes a tiny result file to results/.
+PYTHONPATH=. python scripts/run_experiment.py --smoke-test
 ```
+Exercises only the placeholder probe — it does not call a judge or validate the method.
 
-## 4. Full Experiment Run (example for this problem)
+## 3. Re-aimed plan — causal bias discovery on code judges
 
-Typical pattern (will evolve):
+1. **Testbed.** Use CodeJudgeBench (arXiv:2507.10535): pairs of code answers with
+   unit-test verdicts, so "answer quality" is *ground truth*, not a judged approximation.
+2. **Quality-preserving perturbations.** Use `perturbation_model` to apply a candidate
+   factor (rename vars, reformat, add comments, change identifier authority, pad verbosity)
+   while keeping all unit tests passing. Discard any perturbation that changes pass/fail —
+   this is what makes "quality held fixed" defensible.
+3. **Judge query.** Ask `judge_model` to prefer original vs. perturbed (both orders, to net
+   out position bias). Record preference flips.
+4. **Causal estimate.** Compute the **flip-rate ATE** per factor with **bootstrap CIs**
+   (`n_bootstrap`); run **mediation** to rule out confounds (did a hidden quality change,
+   not the factor, drive the flip?).
+5. **Discovery loop.** Beyond the seed `candidate_bias_factors`, let the perturbation model
+   propose new factors; keep those with significant, mediation-robust ATEs → candidate
+   *novel* biases. Compare against BiasScope's catalogue to claim genuinely new ones.
 
-```bash
-# Train the controller / probe / etc.
-python scripts/run_experiment.py \
-    --config configs/default.yaml \
-    --mode train \
-    --model_name Qwen/Qwen2.5-1.5B-Instruct \
-    --output_dir results/run-001
+## 4. Config
 
-# Evaluate (generations + metrics)
-python scripts/run_experiment.py \
-    --config configs/default.yaml \
-    --mode eval \
-    --checkpoint results/run-001/best_controller.pt \
-    --benchmarks math500,aime24,gpqa
+See `configs/default.yaml`: `judge_model`, `perturbation_model`, `testbed`,
+`candidate_bias_factors`, `n_perturbations_per_pair`, `n_bootstrap`.
 
-# Or combined train+eval script for convenience
-bash experiments/run_full.sh
-```
+## 5. Success bar
 
-## 5. Key Hyperparameters / Config
-
-See `configs/default.yaml`. Common levers:
-- base_model
-- controller_hidden_size / layers (keep very small: 32-256 dim)
-- num_samples_for_best_of_n
-- budget_range (tokens or steps)
-- verifier_model (or oracle for ceiling studies)
-- learning_rate, epochs (small: 1-3 epochs on frozen features often enough)
-
-## 6. Expected Outputs & Metrics
-
-- Accuracy vs. compute (tokens or FLOPs or wall time) curves
-- Comparison table vs. best-of-N (fixed N=4,8,16,32), majority vote, difficulty-only router
-- For verifier problems: FPR, precision-recall at operating points, ceiling shift
-- Plots saved to results/
-- JSONL generations + per-example traces
-
-Target bar (from strategy for P1): ≥1.5-2× compute reduction at matched accuracy vs. best-of-N on MATH-500/AIME.
-
-## 7. Reproducing Baselines
-
-The code ships with:
-- Naive best-of-N
-- Difficulty estimator baseline (e.g. from hidden state entropy or simple probe)
-- Random / fixed budget
-
-See `src/evaluate.py` or run with `--baseline_only`.
-
-## 8. Logging & Tracking
-
-- Console + file logs to experiments/
-- Optional: set `WANDB_PROJECT=...` and `wandb` will be used if installed.
-
-## 9. Common Issues & Tips
-
-- OOM: lower batch size, use gradient checkpointing on base (but frozen usually), or smaller controller.
-- Slow generation: use vLLM if available for eval generations (future extension); start with HF generate.
-- Reproducibility: fix seeds everywhere (see utils.set_seed).
-- Dataset licenses: respect original dataset terms.
-
-## 10. Iterating / Extending
-
-1. Edit `src/` files.
-2. Update `configs/`.
-3. Add new benchmarks or ablations in `evaluate.py`.
-4. When you have good numbers, update this `run.md` with exact commands + observed metrics.
-
-## Current TODOs (update as you progress)
-
-- [ ] Implement data loaders for MATH + AIME
-- [ ] Implement frozen feature extraction from base model
-- [ ] Core controller architecture (per problem)
-- [ ] Loss that incorporates verifier reliability estimate
-- [ ] Strong best-of-N + oracle verifier baselines
-- [ ] Full training loop with early stopping
-- [ ] Analysis + plotting scripts
-- [ ] Reproduce key numbers from cited papers on same base models
-
-## References (key papers to cite / implement against)
-
-BiasScope (arXiv:2602.09383), position/verbosity bias papers
-
-Good luck — this is designed to be high-signal, low-compute research!
+≥1 causally-validated bias (significant flip-rate ATE, mediation-robust, quality provably
+fixed by unit tests) that BiasScope did not report — i.e. discovery *with causal rigor in a
+domain where quality control is real*, not another catalogue.

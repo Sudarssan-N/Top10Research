@@ -6,42 +6,37 @@ from typing import List, Optional
 
 @dataclass
 class ExperimentConfig:
-    base_model: str = "Qwen/Qwen2.5-1.5B-Instruct"
+    # Long-context model with a real long window (override per experiment).
+    base_model: str = "Qwen/Qwen2.5-7B-Instruct"
     seed: int = 42
     device: str = "auto"  # auto, cpu, cuda
-    max_new_tokens: int = 512
-    temperature: float = 0.7
-    num_beams: int = 1
 
-    # Problem-specific
-    controller_hidden_dim: int = 128
-    num_controller_layers: int = 2
-    train_batch_size: int = 8
-    eval_batch_size: int = 4
-    learning_rate: float = 1e-4
-    num_epochs: int = 2
-    budget_max_tokens: int = 2048
+    # Controlled length-vs-position design (the core contribution):
+    # orthogonalize {token count} x {absolute position of the evidence}.
+    context_lengths: List[int] = None   # total context sizes to sweep (tokens)
+    evidence_positions: List[float] = None  # relative placement of the gold evidence (0=start,1=end)
+    num_distractors: int = 0            # filler items; retrieval kept PERFECT (gold always present)
+    eval_task: str = "niah_qa"          # certified-perfect-retrieval QA probe
 
-    # Eval
-    benchmarks: List[str] = None
-    n_samples_best_of_n: int = 16
+    # Training-free mitigations to test
+    mitigation: str = "none"            # none | reorder | attn_calibrate | recitation
+    max_new_tokens: int = 64
 
     output_dir: str = "results/default"
     log_interval: int = 10
 
     def __post_init__(self):
-        if self.benchmarks is None:
-            self.benchmarks = ["math500", "gsm8k"]
+        if self.context_lengths is None:
+            self.context_lengths = [1000, 4000, 16000, 64000]
+        if self.evidence_positions is None:
+            self.evidence_positions = [0.0, 0.25, 0.5, 0.75, 1.0]
 
     @classmethod
     def from_yaml(cls, path: str):
         with open(path) as f:
             data = yaml.safe_load(f) or {}
         # Coerce common numeric fields (yaml sometimes loads 1e-4 etc as str)
-        numeric_keys = {"learning_rate", "temperature", "max_new_tokens", "num_beams",
-                        "controller_hidden_dim", "num_controller_layers",
-                        "train_batch_size", "eval_batch_size", "num_epochs",
-                        "budget_max_tokens", "n_samples_best_of_n", "log_interval", "seed"}
+        numeric_keys = {"max_new_tokens", "num_distractors", "log_interval", "seed"}
         for k in list(data.keys()):
             if k in numeric_keys and isinstance(data[k], str):
                 try:
@@ -60,6 +55,7 @@ class ExperimentConfig:
             yaml.dump(asdict(self), f, sort_keys=False)
 
     def get_device(self):
-        if self.device == "auto":
+        # Never hand back "cuda" when it isn't available (guards CPU smoke runs).
+        if self.device in ("auto", "cuda"):
             return "cuda" if torch.cuda.is_available() else "cpu"
         return self.device

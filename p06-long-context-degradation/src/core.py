@@ -2,7 +2,15 @@
 """
 P6: Context-Length-Induced Degradation Under Perfect Retrieval
 
-Probe for attention dilution / degradation signal + simple mitigation (reorder suggestion or calibration).
+>>> PIVOT NOTE (see ../research.md, 2026-06-29) <<<
+The scaffolded plan (show length hurts, then reorder/calibrate) is already published
+(Found in the Middle arXiv:2406.16008; the anchor arXiv:2510.05381 ships a recitation
+fix). So `ContextDegradationProbe` below is DEMOTED to an optional diagnostic, NOT the
+contribution. The real contribution is the controlled experiment in `evaluate.py`:
+orthogonalize {token count} x {absolute position of the gold evidence} under
+certified-perfect retrieval, show degradation persists when attention dilution is
+masked out (-> mechanism is positional/RoPE, not dilution), then build a
+mechanism-targeted training-free fix that beats recitation.
 """
 import torch
 import torch.nn as nn

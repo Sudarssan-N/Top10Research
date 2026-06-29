@@ -32,7 +32,7 @@ def main():
     set_seed(cfg.seed)
     device = cfg.get_device()
     print(f"Running in mode={args.mode} on device={device}")
-    print(f"Config: base_model={cfg.base_model}")
+    print(f"Config: judge_model={cfg.judge_model}")
 
     if args.smoke_test:
         print("=== SMOKE TEST ===")

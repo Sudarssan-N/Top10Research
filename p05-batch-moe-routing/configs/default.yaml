@@ -1,15 +1,22 @@
-base_model: "Qwen/Qwen2.5-1.5B-Instruct"
+# P5 — Batch-Aware MoE Expert Routing at Inference
+# Verdict (research.md): PIVOT/deprioritize — heavily scooped (OEA/Lynx/SERE/XShare).
+# Only defensible slice: the end-to-end vLLM throughput study OEA never did.
+# NOTE: the goal is training-free routing measured by WALL-CLOCK vs vLLM, not FLOP proxies.
+
+base_model: "Qwen/Qwen1.5-MoE-A2.7B"   # open MoE; needs quant/offload on one 40GB A100
 seed: 42
-controller_hidden_dim: 128
-num_controller_layers: 2
-learning_rate: 1e-4
-num_epochs: 2
-train_batch_size: 4
-eval_batch_size: 8
-budget_max_tokens: 2048
-n_samples_best_of_n: 8
-benchmarks:
-  - math500
-  - gsm8k
+device: auto
+
+# MoE / routing
+num_experts: 60          # Qwen1.5-MoE-A2.7B
+top_k_experts: 4
+routing_strategy: baseline   # baseline | opportunistic | similarity | budget
+expert_budget: 0             # batch-wide cap on unique active experts (0 = uncapped)
+
+# Inference workload
+max_new_tokens: 256
+batch_sizes: [1, 4, 16, 64]  # profile union-of-experts growth with batch size
+serving_baseline: vllm       # the load-bearing metric is tokens/s + peak mem vs this
+
 output_dir: "results/run-001"
 log_interval: 5

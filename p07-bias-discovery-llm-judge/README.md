@@ -3,29 +3,39 @@
 **Problem statement summary:**  
 Build contrastive perturbation + causal validation pipeline for automated bias discovery in judges; go beyond known position/verbosity biases.
 
-**Compute target:** Mostly API + 1×A100 (~50 GPU-hrs + API cost, $100-300)  
+**Compute target:** Mostly API + light GPU ($100-300)  
 **Target venues:** ACL / EMNLP / NeurIPS D&B  
-**Priority:** High (fresh, low-compute)  
-**Key references:** BiasScope (arXiv:2602.09383), position/verbosity bias papers
+**Priority:** Medium — **pivot** (framing scooped; residual is causal + code-judge)  
+**Key references:** BiasScope arXiv:2602.09383 (ICLR 2026, REAL), Automated Concept Discovery arXiv:2603.03319, CodeJudgeBench arXiv:2507.10535
 
-## Goals for this project
+> **Verdict (2026-06-29, see [`research.md`](research.md)): PIVOT.**
+> Substantially scooped — **BiasScope (arXiv:2602.09383) is real (ICLR 2026)** and already
+> does automated discovery + correctness-preserving counterfactual perturbations (48
+> validated biases). Defensible residual: **causal** validation (flip-rate ATE + bootstrap
+> CIs + mediation) in the **executably-verifiable code-judge domain** (CodeJudgeBench),
+> where unit-test pass/fail makes "answer quality held fixed" ground truth rather than an
+> approximation. Fast-moving area (Bias-in-the-Loop, arXiv:2604.16790).
 
-- Reproduce / implement strong baselines (best-of-N, simple difficulty-only controllers, Re-FORC style where applicable).
-- Implement the core contribution described in the strategy doc.
-- Run clean ablations and report compute-efficiency + accuracy tradeoffs on MATH-500, AIME 2024/25, GPQA (and code/math where relevant).
-- Produce publication-quality figures, tables, and analysis.
+## Goals (re-aimed)
 
-## Current Status (scaffold)
+- Generate **quality-preserving** perturbations of *code* answers (refactor, rename,
+  reformat) where unit tests still pass → quality is provably constant.
+- Query the judge on perturbed vs. original; estimate a **flip-rate ATE with bootstrap CIs**.
+- **Mediation** analysis to rule out confounds (is the flip caused by the factor, or a
+  correlated quality change the tests didn't catch?).
+- Differentiate from BiasScope via causal rigor + the code domain, not by re-discovering biases.
 
-- [x] Folder + basic structure created
-- [x] README + run.md + requirements skeleton
-- [x] BiasDiscoveryProbe (pair) + bias strength demo + smoke/train
-- [ ] Contrastive perturbation pipeline + causal validation
-- [ ] Integration with LLM-as-judge (API or local)
-- [ ] Discovery on CodeJudgeBench/MTBench + FPR quantification
-- [ ] Novel bias findings + paper-ready analysis
+## Current Status (scaffold — placeholder)
 
-See `run.md` for exact next steps and how to execute.
+- [x] Folder + basic structure
+- [⚠️] `BiasDiscoveryProbe` (MLP on pair embeddings) is a **placeholder** — see PIVOT NOTE
+  in `src/core.py`; the real method is prompt/LLM-driven perturbation + API judge + causal
+  estimation, not a trained probe
+- [ ] Quality-preserving code-perturbation generator (unit-test gated)
+- [ ] Judge-querying harness + flip-rate ATE estimator with bootstrap CIs
+- [ ] Mediation / confound checks
+
+See `run.md` for the re-aimed plan.
 
 ## Directory layout
 

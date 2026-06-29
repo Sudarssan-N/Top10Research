@@ -1,140 +1,56 @@
-# How to Run — P5: Batch-Aware MoE Expert Routing at Inference (No Retraining)
+# How to Run — P5: Batch-Aware MoE Expert Routing at Inference
 
-This document gives complete, reproducible instructions to set up and run experiments for this problem.
+> **Read [`research.md`](research.md) first.** Verdict (2026-06-29): **PIVOT / DEPRIORITIZE**.
+> The problem is heavily scooped (OEA, Lynx, SERE, XShare). The only defensible angle is
+> the **end-to-end vLLM throughput study OEA never did**. The current `src/core.py` is a
+> placeholder (trains a router — contradicts training-free; FLOP-proxy "speedup"). Do not
+> invest real compute here until P1 has produced numbers and you accept the scoop window.
 
-> **Status note:** This is the initial scaffold. Code implements basic structure, mock runs, and the core skeleton. Full research implementation (model training + strong baselines) will be built iteratively. Start by following the "Minimal smoke test" then move to real training.
-
-## 1. Environment Setup
+## 1. Environment
 
 ```bash
 cd p05-batch-moe-routing
-python -m venv .venv
-source .venv/bin/activate   # or conda / your preferred
-pip install --upgrade pip
-pip install -r requirements.txt
+pip install -r requirements.txt        # + vllm for the serving baseline
+huggingface-cli login                  # if the chosen MoE is gated
 ```
 
-**Recommended hardware:** See top of this doc (usually 1x A100 or equivalent).  
-For smoke tests: CPU or small GPU is fine (models will be tiny or mocked at first).
+**Hardware:** the MoEs worth testing don't fit fp16 on one 40GB A100 (Mixtral ~90GB,
+Qwen3-30B ~60GB). Plan for quantization (AWQ/GPTQ) or CPU-offload — note that this
+**changes which regime is bottlenecked**, so report it explicitly.
 
-**HF login (for models/datasets):**
-```bash
-huggingface-cli login
-# or set HF_TOKEN env
-```
-
-## 2. Data Preparation
-
-Most projects use:
-- MATH (hendrycks_math or math dataset on HF)
-- GSM8K
-- AIME 2024/2025 (usually manual or community splits; scripts will download)
-- GPQA (diamond)
-
-The `scripts/prepare_data.py` (or equivalent in src) will cache them under `data/`.
-
-Run once:
-```bash
-python scripts/prepare_data.py   # if present, or use the logic in evaluate/train
-```
-
-## 3. Minimal Smoke Test (always works, even without GPU)
+## 2. Smoke test (CPU, no model)
 
 ```bash
-python -c "
-from src.utils import hello
-print(hello())
-# or
-python scripts/run_experiment.py --config configs/default.yaml --smoke-test
-"
-
-Expected: prints version info, runs a dummy forward pass or mock controller, writes a tiny result file to results/.
+PYTHONPATH=. python scripts/run_experiment.py --smoke-test
 ```
+This only exercises the placeholder router. It does **not** validate the real method.
 
-## 4. Full Experiment Run (example for this problem)
+## 3. Re-aimed plan (if pursued)
 
-Typical pattern (will evolve):
+The measurement is the contribution — not a new routing idea.
 
-```bash
-# Train the controller / probe / etc.
-python scripts/run_experiment.py \
-    --config configs/default.yaml \
-    --mode train \
-    --model_name Qwen/Qwen2.5-1.5B-Instruct \
-    --output_dir results/run-001
+1. **Union-of-experts profiling.** Instrument a real open MoE (`Qwen/Qwen1.5-MoE-A2.7B`,
+   Mixtral) and record the number of *distinct* experts activated per layer as batch size
+   sweeps `[1, 4, 16, 64]`. Confirm union → total as B grows (the core tension).
+2. **Training-free policy.** Over the model's own gating logits, apply opportunistic
+   (OEA-style piggyback), similarity re-route (SERE-style), or batch budget (XShare-style)
+   selection. No trained router.
+3. **Accuracy check.** Verify no statistically significant downstream accuracy loss
+   (MMLU / GSM8K / a code task — pick what the model is evaluated on, *not* MATH-by-default).
+4. **End-to-end wall-clock harness.** Adopt the MoE-Inference-Bench (arXiv:2508.17467)
+   vLLM TTFT/throughput methodology. Report **tokens/s + peak memory vs. vLLM** — beware
+   that custom routing falls off vLLM's fused grouped-GEMM / CUDA-graph fast path, so fewer
+   experts can be *net slower*.
+5. **Ablations.** batch-adaptive k₀; per-layer expert budgets (the two open problems OEA names).
 
-# Evaluate (generations + metrics)
-python scripts/run_experiment.py \
-    --config configs/default.yaml \
-    --mode eval \
-    --checkpoint results/run-001/best_controller.pt \
-    --benchmarks math500,aime24,gpqa
+## 4. Config
 
-# Or combined train+eval script for convenience
-bash experiments/run_full.sh
-```
+See `configs/default.yaml`: `base_model`, `num_experts`, `top_k_experts`,
+`routing_strategy ∈ {baseline, opportunistic, similarity, budget}`, `expert_budget`,
+`batch_sizes`, `serving_baseline`.
 
-## 5. Key Hyperparameters / Config
+## 5. Success bar
 
-See `configs/default.yaml`. Common levers:
-- base_model
-- controller_hidden_size / layers (keep very small: 32-256 dim)
-- num_samples_for_best_of_n
-- budget_range (tokens or steps)
-- verifier_model (or oracle for ceiling studies)
-- learning_rate, epochs (small: 1-3 epochs on frozen features often enough)
-
-## 6. Expected Outputs & Metrics
-
-- Accuracy vs. compute (tokens or FLOPs or wall time) curves
-- Comparison table vs. best-of-N (fixed N=4,8,16,32), majority vote, difficulty-only router
-- For verifier problems: FPR, precision-recall at operating points, ceiling shift
-- Plots saved to results/
-- JSONL generations + per-example traces
-
-Target bar (from strategy for P1): ≥1.5-2× compute reduction at matched accuracy vs. best-of-N on MATH-500/AIME.
-
-## 7. Reproducing Baselines
-
-The code ships with:
-- Naive best-of-N
-- Difficulty estimator baseline (e.g. from hidden state entropy or simple probe)
-- Random / fixed budget
-
-See `src/evaluate.py` or run with `--baseline_only`.
-
-## 8. Logging & Tracking
-
-- Console + file logs to experiments/
-- Optional: set `WANDB_PROJECT=...` and `wandb` will be used if installed.
-
-## 9. Common Issues & Tips
-
-- OOM: lower batch size, use gradient checkpointing on base (but frozen usually), or smaller controller.
-- Slow generation: use vLLM if available for eval generations (future extension); start with HF generate.
-- Reproducibility: fix seeds everywhere (see utils.set_seed).
-- Dataset licenses: respect original dataset terms.
-
-## 10. Iterating / Extending
-
-1. Edit `src/` files.
-2. Update `configs/`.
-3. Add new benchmarks or ablations in `evaluate.py`.
-4. When you have good numbers, update this `run.md` with exact commands + observed metrics.
-
-## Current TODOs (update as you progress)
-
-- [x] BatchAwareMoERouter core + mask suggestion + crude speedup estimator
-- [x] Smoke + synthetic training (MSE on expert distribution)
-- [ ] Real MoE model profiling (activation counts per batch on open MoE)
-- [ ] Router that uses batch summary stats for dynamic top-k / threshold
-- [ ] Latency/throughput harness + comparison to baseline (union activation)
-- [ ] Accuracy impact of aggressive batch routing
-- [ ] Results tables + figures suitable for MLSys/NeurIPS
-- [ ] Reproduce ideas from arXiv:2511.02237 and extend
-
-## References (key papers to cite / implement against)
-
-arXiv:2511.02237 (opportunistic MoE activation)
-
-Good luck — this is designed to be high-signal, low-compute research!
+Real throughput / peak-memory win vs. vLLM on ≥2 open MoEs at matched accuracy — in the
+single-GPU offload regime no prior paper measured. FLOP counts and MoE-layer-only latency
+do **not** count.

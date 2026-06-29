@@ -1,140 +1,52 @@
 # How to Run — P6: Context-Length-Induced Degradation Under Perfect Retrieval
 
-This document gives complete, reproducible instructions to set up and run experiments for this problem.
+> **Read [`research.md`](research.md) first.** Verdict (2026-06-29): **PIVOT / SHARPEN**.
+> The reorder/calibrate mitigations are already published; the contribution is the
+> **mechanism**. `src/core.py`'s `ContextDegradationProbe` is now only a diagnostic.
+> Scoop risk is concentrated in one lab (anchor + PINE) — move fast or pick another problem.
 
-> **Status note:** This is the initial scaffold. Code implements basic structure, mock runs, and the core skeleton. Full research implementation (model training + strong baselines) will be built iteratively. Start by following the "Minimal smoke test" then move to real training.
-
-## 1. Environment Setup
+## 1. Environment
 
 ```bash
 cd p06-long-context-degradation
-python -m venv .venv
-source .venv/bin/activate   # or conda / your preferred
-pip install --upgrade pip
 pip install -r requirements.txt
+huggingface-cli login        # if the long-context model is gated
 ```
 
-**Recommended hardware:** See top of this doc (usually 1x A100 or equivalent).  
-For smoke tests: CPU or small GPU is fine (models will be tiny or mocked at first).
+**Hardware:** 1×A100. A 7–8B model at 64k context fits with FlashAttention-2; reduce
+`context_lengths` for smaller GPUs.
 
-**HF login (for models/datasets):**
-```bash
-huggingface-cli login
-# or set HF_TOKEN env
-```
-
-## 2. Data Preparation
-
-Most projects use:
-- MATH (hendrycks_math or math dataset on HF)
-- GSM8K
-- AIME 2024/2025 (usually manual or community splits; scripts will download)
-- GPQA (diamond)
-
-The `scripts/prepare_data.py` (or equivalent in src) will cache them under `data/`.
-
-Run once:
-```bash
-python scripts/prepare_data.py   # if present, or use the logic in evaluate/train
-```
-
-## 3. Minimal Smoke Test (always works, even without GPU)
+## 2. Smoke test (CPU, no model)
 
 ```bash
-python -c "
-from src.utils import hello
-print(hello())
-# or
-python scripts/run_experiment.py --config configs/default.yaml --smoke-test
-"
-
-Expected: prints version info, runs a dummy forward pass or mock controller, writes a tiny result file to results/.
+PYTHONPATH=. python scripts/run_experiment.py --smoke-test
 ```
+Exercises only the (now-diagnostic) probe — it does not validate the real design.
 
-## 4. Full Experiment Run (example for this problem)
+## 3. Re-aimed plan — isolate length from position from retrieval
 
-Typical pattern (will evolve):
+1. **Certified-perfect-retrieval generator.** Build contexts where the gold evidence is
+   *always present and verbatim*; vary only (a) total token count and (b) the gold's
+   absolute position. Retrieval is never the failure mode by construction.
+2. **The 2×2 (the core experiment).** Cross `{few tokens, many tokens}` ×
+   `{evidence at small absolute position, large absolute position}`. Sweep
+   `context_lengths` × `evidence_positions` from the config. Show degradation tracks
+   token *count* at fixed position (pure length effect).
+3. **Decisive mechanism test.** Re-run with attention-dilution masked out of the softmax
+   (the anchor's manipulation). If accuracy still drops → mechanism is positional/RoPE,
+   not dilution. This is the falsification that justifies the paper.
+4. **Mechanism-targeted fix.** Build a training-free intervention from step 3 (e.g.
+   position re-mapping à la PINE) and show it **beats the recitation baseline** and the
+   Found-in-the-Middle attention-calibration baseline.
 
-```bash
-# Train the controller / probe / etc.
-python scripts/run_experiment.py \
-    --config configs/default.yaml \
-    --mode train \
-    --model_name Qwen/Qwen2.5-1.5B-Instruct \
-    --output_dir results/run-001
+## 4. Config
 
-# Evaluate (generations + metrics)
-python scripts/run_experiment.py \
-    --config configs/default.yaml \
-    --mode eval \
-    --checkpoint results/run-001/best_controller.pt \
-    --benchmarks math500,aime24,gpqa
+See `configs/default.yaml`: `base_model`, `context_lengths`, `evidence_positions`,
+`num_distractors` (keep gold present), `eval_task`, `mitigation ∈ {none, reorder,
+attn_calibrate, recitation}`.
 
-# Or combined train+eval script for convenience
-bash experiments/run_full.sh
-```
+## 5. Success bar
 
-## 5. Key Hyperparameters / Config
-
-See `configs/default.yaml`. Common levers:
-- base_model
-- controller_hidden_size / layers (keep very small: 32-256 dim)
-- num_samples_for_best_of_n
-- budget_range (tokens or steps)
-- verifier_model (or oracle for ceiling studies)
-- learning_rate, epochs (small: 1-3 epochs on frozen features often enough)
-
-## 6. Expected Outputs & Metrics
-
-- Accuracy vs. compute (tokens or FLOPs or wall time) curves
-- Comparison table vs. best-of-N (fixed N=4,8,16,32), majority vote, difficulty-only router
-- For verifier problems: FPR, precision-recall at operating points, ceiling shift
-- Plots saved to results/
-- JSONL generations + per-example traces
-
-Target bar (from strategy for P1): ≥1.5-2× compute reduction at matched accuracy vs. best-of-N on MATH-500/AIME.
-
-## 7. Reproducing Baselines
-
-The code ships with:
-- Naive best-of-N
-- Difficulty estimator baseline (e.g. from hidden state entropy or simple probe)
-- Random / fixed budget
-
-See `src/evaluate.py` or run with `--baseline_only`.
-
-## 8. Logging & Tracking
-
-- Console + file logs to experiments/
-- Optional: set `WANDB_PROJECT=...` and `wandb` will be used if installed.
-
-## 9. Common Issues & Tips
-
-- OOM: lower batch size, use gradient checkpointing on base (but frozen usually), or smaller controller.
-- Slow generation: use vLLM if available for eval generations (future extension); start with HF generate.
-- Reproducibility: fix seeds everywhere (see utils.set_seed).
-- Dataset licenses: respect original dataset terms.
-
-## 10. Iterating / Extending
-
-1. Edit `src/` files.
-2. Update `configs/`.
-3. Add new benchmarks or ablations in `evaluate.py`.
-4. When you have good numbers, update this `run.md` with exact commands + observed metrics.
-
-## Current TODOs (update as you progress)
-
-- [ ] Implement data loaders for MATH + AIME
-- [ ] Implement frozen feature extraction from base model
-- [ ] Core controller architecture (per problem)
-- [ ] Loss that incorporates verifier reliability estimate
-- [ ] Strong best-of-N + oracle verifier baselines
-- [ ] Full training loop with early stopping
-- [ ] Analysis + plotting scripts
-- [ ] Reproduce key numbers from cited papers on same base models
-
-## References (key papers to cite / implement against)
-
-arXiv:2510.05381
-
-Good luck — this is designed to be high-signal, low-compute research!
+A clean count-vs-position disentanglement under guaranteed-perfect retrieval + a decisive
+masked-dilution result + a mechanism-targeted fix that beats recitation. Pure replication
+of the anchor is not publishable.

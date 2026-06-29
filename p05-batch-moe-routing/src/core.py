@@ -2,10 +2,15 @@
 """
 P5: Batch-Aware MoE Expert Routing at Inference (No Retraining)
 
-Lightweight training-free or lightly-adapted batch router.
-Given batch stats or token embeddings summary, outputs suggested expert activation
-mask or rebalancing to reduce union-of-experts cost and stragglers.
-Simulates throughput/accuracy tradeoffs.
+>>> PIVOT NOTE (see ../research.md, 2026-06-29) <<<
+This `BatchAwareMoERouter` is a PLACEHOLDER, not the real method. It (a) *trains* a
+new MLP router with MSE — which contradicts the "training-free" premise — and
+(b) `estimate_speedup` returns a FLOP/expert-count proxy, exactly the metric the
+problem says is insufficient. The real contribution must hook a *real* MoE model's
+own gating logits, apply a training-free batch policy (opportunistic / similarity /
+budget), and measure END-TO-END wall-clock (tokens/s) + peak memory vs a vLLM
+baseline. Treat the classes below as a sketch to be replaced. Given the PIVOT/
+deprioritize verdict, do this only if pursuing the "end-to-end study OEA never did".
 """
 import torch
 import torch.nn as nn
