@@ -1,36 +1,40 @@
 # P6 Research Foundation — Context-Length-Induced Degradation Under Perfect Retrieval
 
-**Problem:** Why do LLMs degrade as context length grows *even when the needed information is retrieved perfectly* (i.e., distractor length, not retrieval failure, is the cause), and can simple, training-free mitigations recover accuracy?
+**Frozen problem statement (2026-09-10):** After retrieval is certified perfect and distractors are removed from the softmax, does remaining accuracy still track RoPE **relative distance** \(m\), **softmax support** \(n\), or the **absolute index of the query** — and does the intervention that cell implies beat recitation, Found-in-the-Middle, PINE, and STRING on reasoning tasks at matched decode tokens?
 
-**Compute:** 1×A100-40/80GB or Colab (~80–120 GPU-hrs, ~$150–300)
-**Venues:** ACL / EMNLP / COLM / ICLR (analysis track)
-**Project:** `p06-long-context-degradation/`
+**Complete RQ + factorial + Du-protocol verification:** [`p06-problem-statement-2026-09.md`](p06-problem-statement-2026-09.md)  
+**Compute:** 1×A100-40/80GB (~80–120 GPU-hrs)  
+**Venues:** ICML 2027 / ACL 2027 (not ICLR 2027)  
+**Project:** `p06-long-context-degradation/`  
 **Parent index:** [`../../research.md`](../../research.md) §P6
 
 ---
 
-### TL;DR Verdict
+### TL;DR Verdict (updated 2026-09-10)
 
-**PIVOT (sharpen), do not proceed as scaffolded, do not kill.** The problem as written in the scaffold — "diagnose that length hurts under perfect retrieval, then apply simple reorder/calibration fixes" — is **already substantially solved in the published 2024–2026 literature, and by multiple groups.** The named anchor, *Context Length Alone Hurts LLM Performance Despite Perfect Retrieval* (arXiv:2510.05381, **verified**), already (a) isolates pure length from retrieval via whitespace replacement **and** attention masking, (b) shows 13.9–85% degradation, and (c) ships a training-free mitigation (recite-evidence-before-solving). Both mitigations P6 proposes are also already published: **attention re-calibration** is *Found in the Middle* (arXiv:2406.16008, verified, +15pp) and PINE (arXiv:2407.01100, verified); **reordering** is the standard Lost-in-the-Middle remedy. Running P6 as scaffolded = replication + a marginal third mitigation → **high incrementalism/scoop risk, likely reject.**
+**Keep, but replace the 2×2 language.** Existence is closed (Du et al., EMNLP 2025 Findings, arXiv:2510.05381). Generic fixes are closed (recitation; FitM +15 pp; PINE; STRING +>10 RULER, ICLR 2025). Peng lab theory is in NeurIPS 2026 review (arXiv:2605.15514). The June 2026 “token count × absolute evidence position” grid is **too coarse**: it mixes softmax support \(n\), RoPE relative distance \(m\), and query absolute index, and the current `core.py` KV sweep is closer to Lost-in-the-Middle than to Du.
 
-**But there is one specific, defensible white space the anchor explicitly leaves open: the mechanism.** The anchor's own masking experiment is self-undercutting in a productive way — if you mask the irrelevant tokens so the model attends *only* to evidence+question, you have **removed attention dilution from the softmax**, yet degradation persists. That rules out the field's dominant mechanistic story (softmax entropy/attention-fading, arXiv:2506.16640, 2602.15028) and points at a *positional/representational* cause (RoPE long-term decay, hidden-state norm growth). **Nobody has cleanly run the orthogonalizing 2×2: {few vs. many tokens in attention} × {relevant span at small vs. large absolute position}, with perfect retrieval held fixed.** That causal disentanglement — plus a *mechanism-targeted* training-free fix (position re-mapping / attention-temperature recalibration) benchmarked head-to-head against recitation and Found-in-the-Middle — is the contribution worth pursuing. Novelty: **medium and conditional on the mechanism framing**; feasibility: **high** (8B open models, RULER/BABILong, attention hooks all fit one A100/Colab); biggest risk: **incrementalism vs. the anchor and a possible v2 from the same lab (Hao Peng's group is actively on this line).** Verdict: pivot from "diagnose + mitigate" to **"resolve WHICH mechanism, then beat recitation with a fix derived from it."**
+**What Du actually ran** (full text, §4): `[E][MASK][Q]` = few \(n\), **large** \(m\); `[WS][E][Q]` = many \(n\), **small** \(m\), large query index. Both drop. They never ran **`[MASK][E][Q]`** (few \(n\), small \(m\), large query index) and never crossed the mask cell with STRING.
+
+That missing cell is the paper. If it recovers, Fig. 4b was dilution and STRING is the wrong fix for it. If it fails, recitation is uniquely justified and STRING (which remaps \(m\), not \(|q|\)) should not save D. Either outcome is A*-shaped; “we show length hurts” is not.
+
+**Do not** lead with a middle-position U-shape sweep. Du’s drop happens at **both** start and end, which is not Lost-in-the-Middle.
 
 ---
 
 ### Problem Statement & Framing
 
-> Why do LLMs degrade as context length grows even when the needed information is retrieved perfectly, and can simple, training-free mitigations recover accuracy?
+> After retrieval is certified perfect and distractors are removed from the softmax, does remaining accuracy still track RoPE relative distance \(m\), softmax support \(n\), or the absolute index of the query — and does the intervention that cell implies beat recitation, FitM, PINE, and STRING on reasoning tasks at matched decode tokens?
 
-**Core claim (original scaffold):** Retrieval-isolating benchmarks overestimate long-context progress; if you hold retrieval perfect and only grow the *amount* of (irrelevant) context, performance still drops — implicating an internal mechanism (attention dilution / position bias) rather than retrieval failure. A model-agnostic, training-free fix (reorder relevant content, recalibrate attention) should recover much of the loss.
+**Do not use the original scaffold question** (“does length hurt under perfect retrieval?”). That is Du et al. 2025.
 
-**Why this needs sharpening:** As of mid-2026 the *existence* claim is settled (anchor 2510.05381; reinforced by 2601.15300 "critical threshold," 2602.15028 "long context, less focus"), and the *generic* training-free fixes are published (2406.16008, 2407.01100, recitation). So the original framing is no longer a research question — it is a reproduction.
+**Four mechanisms, not two.** M1 dilution (\(n\)); M2-rel RoPE distance (\(m\), Peng 2605.15514); M2-abs query index / residual drift; M3 architectural U-shape (Lost-in-the-Middle / Chowdhury 2603.10123). Du’s drop at **both** start and end is already a poor fit for M3. STRING (ICLR 2025) is the natural fix for M2-rel and a **baseline**, not the claim.
 
-**Reframed core claim (recommended):** The literature offers two competing mechanisms for length-induced degradation under perfect retrieval — **(M1) attention dilution** (softmax denominator/entropy grows ~log n, flattening attention; 2506.16640, 2602.15028) and **(M2) positional/representational effects** (RoPE long-term decay at large absolute positions; hidden-state norm drift; 2405.14591, 2407.01100). The anchor's masking result is *inconsistent with M1 alone*. P6's contribution is a **controlled causal study that orthogonalizes token-count from absolute-position (and from distraction), pins the dominant mechanism, and derives a training-free intervention that targets it and beats recitation/Found-in-the-Middle at matched compute.**
+**Headline experiment:** five layouts A–E in [`p06-problem-statement-2026-09.md`](p06-problem-statement-2026-09.md) §4. The unpublished cell is Layout D, `[MASK][E][Q]`.
 
-**Target bar:** (1) A 2×2(×distractor) controlled benchmark where retrieval is provably perfect (evidence extractable verbatim) that shows degradation tracks **position more than count** (or vice-versa) with bootstrap CIs on ≥3 open models (Llama-3.1-8B, Qwen2.5/3-7B, Gemma-2-9B). (2) A training-free fix that recovers ≥ the recitation baseline's accuracy at **lower token overhead**, with an ablation isolating *why* it works. Anything less than (1)+(2) is incremental.
+**Target bar:** (1) Replicate Du mask and Du evidence-at-end on ≥2 open models. (2) Layout D with bootstrap CIs. (3) STRING remap of the mask cell. (4) Mechanism-implied fix vs recitation/FitM/PINE/STRING on GSM8K-at-length, accuracy vs extra tokens. Anything less than (1)+(2) is a blog post; (1)+(2)+(3)+(4) is the ICML/ACL paper.
 
-**Venues:** ACL / EMNLP / COLM (analysis); ICLR if the mechanism result is strong.
-**Compute:** 1×A100, ~80–120 GPU-hrs.
+**Venues:** ICML 2027 / ACL 2027. **Compute:** 1×A100, ~80–120 GPU-hrs.
 
 ---
 

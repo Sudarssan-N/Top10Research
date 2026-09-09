@@ -1,0 +1,92 @@
+\documentclass[11pt]{article}
+\usepackage[preprint]{neurips_2024}
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{booktabs}
+\usepackage{graphicx}
+\usepackage{xcolor}
+\usepackage{url}
+
+\title{Which Length Is It? Dilution, Relative Distance, and Query Index under Perfect Retrieval}
+
+\author{
+  Anonymous Author(s) \\
+  \texttt{affiliation withheld for review} \\
+}
+
+\begin{document}
+\maketitle
+
+\begin{abstract}
+Du et al.\ showed that accuracy still falls when retrieval is perfect, even after whitespace filler or after distractors are masked out of the softmax. That result does not identify \emph{which} length is causal: softmax support $n$, RoPE relative distance $m$ between evidence and question, or the absolute index of the query. Their mask keeps $m$ large; their evidence-at-end condition keeps $n$ large. We run the missing cell---mask the prefix, keep evidence next to the question---and the STRING remap of their mask, then take as the contribution whichever training-free intervention that cell implies, compared with recitation, Found-in-the-Middle, PINE, and STRING on reasoning tasks at matched decode tokens.
+\end{abstract}
+
+\keywords{long context, perfect retrieval, RoPE, attention dilution, STRING}
+
+\section{Introduction}
+\label{sec:intro}
+\citet{contextlength2025} isolate length from retrieval: Llama-3.1-8B still loses up to 50 points at 30K tokens when distractors are masked, and still drops when evidence sits immediately before the question. Those two controls do not cross. Masking holds softmax support $n$ small but RoPE relative distance $m$ large; moving evidence to the end holds $m$ small but $n$ large. STRING \citep{string2025} remaps large relative indices and already owns the retrieval-NIAH fix; recitation \citep{contextlength2025} shortens the whole prompt. We ask which of $n$, $m$, and the query's absolute index remains after the other two are set to their short-context values, on Du-style reasoning (not only needle retrieval).
+
+\textbf{Contributions.}
+\begin{enumerate}
+    \item A five-layout factorial that independently sets softmax support, RoPE relative distance, and query index under certified-perfect retrieval.
+    \item The missing cell \texttt{[MASK][E][Q]} and the STRING remap of Du's mask, with preregistered predictions for dilution vs.\ relative-RoPE vs.\ query-index.
+    \item A mechanism-implied training-free intervention vs.\ recitation, Found-in-the-Middle, PINE, and STRING on GSM8K-at-length, scored by accuracy per extra decode token.
+\end{enumerate}
+
+\section{Related Work}
+\label{sec:related}
+\textbf{Length vs.\ retrieval.} \citet{contextlength2025} (EMNLP 2025 Findings) certify retrieval by exact-match recitation, then show drops under essay filler, whitespace, and masking. Recitation is their fix.
+
+\textbf{Relative position frequency.} STRING \citep{string2025} (ICLR 2025) attributes short effective context to left-skewed relative-index training and remaps distant keys onto well-trained small indices ($+{>}10$ RULER). That is the M2-rel baseline, evaluated on NIAH-style retrieval, not Du's mask.
+
+\textbf{RoPE theory.} \citet{rope2026} prove position/token inversion as $M$ grows and argue new positional mechanisms are required. They do not run the mask-end cell.
+
+\textbf{U-shape (different phenomenon).} Lost-in-the-Middle \citep{liu2024lost}, Found-in-the-Middle \citep{foundmiddle2024}, PINE \citep{pine2024}, and init-time U-shape \citep{chowdhury2026} concern start/end vs.\ middle at \emph{fixed} length. Du's drop at both ends is not that U-shape.
+
+\section{Method}
+\label{sec:method}
+\subsection{Certified generator}
+Follow Du: split a short GSM8K/VarSum item into a contiguous evidence span and a question; insert filler; certify retrieval with a separate exact-match recitation probe.
+
+\subsection{Five layouts}
+A short oracle \texttt{[E][Q]}; B Du mask \texttt{[E][MASK][Q]}; C Du end \texttt{[WS][E][Q]}; D missing cell \texttt{[MASK][E][Q]}; E STRING remap of B. Filler $\in$ \{essay, whitespace, mask\}. Lengths $0$--$32$K.
+
+\subsection{Predictions}
+M1 dilution: D recovers, C fails, STRING does not help B. M2-rel: B fails, C and D recover, STRING recovers B. M2-abs: D still fails and STRING does not recover D.
+
+\subsection{Mitigations}
+None, recitation, Found-in-the-Middle, PINE, STRING, and the intervention implied by D, scored on accuracy vs.\ extra decode tokens.
+
+\section{Experimental Setup}
+\label{sec:experiments}
+\textbf{Models.} Llama-3.1-8B, Qwen2.5/3-7B, Gemma-2-9B.
+
+\textbf{Metrics.} Accuracy vs.\ length/position; token overhead of mitigations.
+
+\textbf{Success.} Clean disentanglement + fix beating recitation at lower token cost.
+
+\section{Results}
+\label{sec:results}
+\textbf{[Placeholder]} Tables and figures will be populated from \texttt{results/} after real runs complete. Planned artifacts:
+\begin{itemize}
+    \item Main comparison table vs.\ baselines cited in \S\ref{sec:related}.
+    \item Ablations isolating each method component in \S\ref{sec:method}.
+    \item Pareto / risk--coverage / wall-clock curves per project metrics.
+\end{itemize}
+
+\section{Conclusion}
+\label{sec:conclusion}
+We outlined a NeurIPS-style empirical study for P6: problem framing aligned with \texttt{common/research/p06-research.md}, a literature-grounded method, and an evaluation plan tied to the project codebase. Next steps: run real experiments in \texttt{p06-long-context-degradation/}, then replace \S\ref{sec:results} placeholders with measured numbers.
+
+\section*{Broader Impact}
+Efficient inference, evaluation rigor, and robust judge pipelines affect deployment cost and safety. Failures in verifiers, memory budgets, or serving measurements can mis-rank model quality; we report negative results transparently.
+
+\bibliographystyle{plainnat}
+\bibliography{references}
+
+\appendix
+\section{Implementation Mapping}
+\label{app:code}
+Code lives in \texttt{p06-long-context-degradation/}. See \texttt{run.md} for reproduction commands and \texttt{research.md} for the 20-paper map.
+
+\end{document}

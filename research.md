@@ -113,11 +113,11 @@ The field has shifted from **“does more test-time compute help?”** to **“h
 > **Full research doc:** [`common/research/p06-research.md`](common/research/p06-research.md)  
 > **Project symlink:** `p06-*/research.md`
 
-**Problem:** Why do models degrade as context grows even when retrieval is perfect, and can simple training-free mitigations help?
+**Problem:** After certified-perfect retrieval, which length still hurts — softmax support \(n\), RoPE relative distance \(m\), or the query's absolute index — and does the implied training-free fix beat recitation / FitM / PINE / STRING on reasoning tasks?
 
-**Verdict (2026-06-29):** **Pivot / sharpen** — the scaffolded version (show length hurts, then reorder/calibrate) is already solved: attention re-calibration = *Found in the Middle* (arXiv:2406.16008, +15pp), reordering = the standard Lost-in-the-Middle remedy, and the anchor (arXiv:2510.05381) already isolates length from retrieval and ships a recitation fix. Real white space: the **mechanism** — nobody has run the orthogonalizing {few/many tokens} × {evidence at small/large absolute position} 2×2 under certified-perfect retrieval. The anchor's own masking result *falsifies* the attention-dilution story and points at positional/RoPE effects; a mechanism-targeted fix that beats recitation is the contribution. Concentrated scoop risk: Hao Peng's lab authored both the anchor and PINE.
+**Verdict (2026-09-10):** **Keep, replace the 2×2 language.** Existence and recitation are Du et al.\ (EMNLP 2025 Findings, arXiv:2510.05381). STRING already remaps large relative indices (ICLR 2025). Peng lab theory is in NeurIPS 2026 review (arXiv:2605.15514). Du's mask is `[E][MASK][Q]` (few \(n\), **large** \(m\)); Du's end condition is `[WS][E][Q]` (many \(n\), **small** \(m\)). The unpublished cell is `[MASK][E][Q]`. Frozen protocol: [`common/research/p06-problem-statement-2026-09.md`](common/research/p06-problem-statement-2026-09.md). Target ICML 2027 / ACL 2027.
 
-**Anchor / P0 papers:** Context Length Alone Hurts (arXiv:2510.05381); Lost in the Middle (Liu et al., TACL 2024); Found in the Middle (arXiv:2406.16008); PINE — mechanistic position-bias removal (arXiv:2407.01100); sparse-attention / α-entmax long-context (arXiv:2506.16640). Full web-verified list in the per-problem doc.
+**Anchor / P0 papers:** Context Length Alone Hurts (arXiv:2510.05381); STRING (arXiv:2410.18745, ICLR 2025); RoPE Distinguishes Neither (arXiv:2605.15514); Found in the Middle (arXiv:2406.16008); PINE (arXiv:2407.01100); Lost in the Middle (TACL 2024). Full protocol + verified Du layouts in the problem-statement doc.
 
 ---
 

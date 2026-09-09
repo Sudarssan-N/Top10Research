@@ -1,0 +1,65 @@
+% NeurIPS 2024 style file (submission / preprint compatible)
+% Based on the public NeurIPS LaTeX style; bundled for Overleaf upload.
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{neurips_2024}[2024/03/31 NeurIPS 2024 submission/camera-ready style file]
+
+\newif\if@neuripsfinal\@neuripsfinalfalse
+\DeclareOption{final}{\@neuripsfinaltrue}
+\DeclareOption{preprint}{\@neuripsfinalfalse}
+\ProcessOptions\relax
+
+\if@neuripsfinal
+  \newcommand{\@neuripsversion}{Camera-ready copy.}
+\else
+  \newcommand{\@neuripsversion}{Preprint. Under review.}
+\fi
+
+\RequirePackage[letterpaper,margin=1in]{geometry}
+\RequirePackage{times}
+\RequirePackage{microtype}
+\RequirePackage{graphicx}
+\RequirePackage{natbib}
+\RequirePackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=blue,citecolor=blue,urlcolor=blue}
+
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{0.5\baselineskip}
+\renewcommand{\baselinestretch}{1.0}
+
+\newcommand{\@maketitle}{%
+  \vbox{%
+    \hsize\textwidth
+    \linewidth\hsize
+    \vskip 0.1in
+    \begin{center}
+      {\LARGE\bfseries \@title \par}
+      \vskip 0.2in
+      {\large
+        \begin{tabular}[t]{c}
+          \@author
+        \end{tabular}\par}
+      \vskip 0.1in
+      {\normalsize \@neuripsversion\par}
+    \end{center}
+    \vskip 0.2in
+  }%
+}
+
+\renewcommand{\maketitle}{\par
+  \begingroup
+    \@maketitle
+    \thispagestyle{empty}
+  \endgroup
+  \@thanks
+  \setcounter{footnote}{0}%
+  \let\maketitle\relax
+  \let\@maketitle\relax
+  \gdef\@thanks{}\gdef\@author{}\gdef\@title{}%
+  \let\thanks\relax}
+
+\newcommand{\keywords}[1]{%
+  \vskip 0.1in
+  \noindent\textbf{Keywords:} #1\par
+}
+
+\endinput
